@@ -36,8 +36,7 @@ async def CheckChannelSubscription(UserId: int) -> bool:
         return False
 
 @BotDispatcher.message_handler(commands=["start"], state="*")
-async def HandleStartCommand(Message: types.Message, State: FSMContext):
-    await State.finish()
+async def HandleStartCommand(Message: types.Message):
     UserId = Message.from_user.id
     CommandArgs = Message.get_args()
     
@@ -58,6 +57,13 @@ async def HandleStartCommand(Message: types.Message, State: FSMContext):
         
         if ReferrerId:
             await Message.answer("Привет! Ты перешел по ссылке друга. Подпишись на канал и нажми проверку ниже!")
+            
+    MenuKeyboard = types.InlineKeyboardMarkup(row_width=1)
+    LinkButton = types.InlineKeyboardButton("🔗 Получить мою ссылку", callback_data="GetInviteLink")
+    CheckButton = types.InlineKeyboardButton("✅ Проверить моих друзей", callback_data="CheckReferrals")
+    MenuKeyboard.add(LinkButton, CheckButton)
+    
+    await Message.answer("Добро пожаловать! Пригласи 2 друзей в канал и получи ранний доступ к игре «Вырасти Русский Сад»!", reply_markup=MenuKeyboard)
             
     MenuKeyboard = types.InlineKeyboardMarkup(row_width=1)
     LinkButton = types.InlineKeyboardButton("🔗 Получить мою ссылку", callback_data="GetInviteLink")
