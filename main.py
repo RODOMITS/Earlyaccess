@@ -1,7 +1,4 @@
 import logging
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import db
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from aiogram.dispatcher import FSMContext
@@ -11,18 +8,14 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 BotToken = "8631154236:AAEWh1ViGH_54cXq8I7I7EdBZvTYYN8fBRY"
 ChannelId = -1003326105559
 
-FirebaseCredentialPath = "key.json"
-FirebaseDatabaseUrl = "https://earlyaccess-f2d4b-default-rtdb.firebaseio.com/"
-
-AppCredentials = credentials.Certificate(FirebaseCredentialPath)
-firebase_admin.initialize_app(AppCredentials, {
-    "databaseURL": FirebaseDatabaseUrl
-})
-
 TelegramBot = Bot(token=BotToken)
 BotStorage = MemoryStorage()
 BotDispatcher = Dispatcher(TelegramBot, storage=BotStorage)
 logging.basicConfig(level=logging.INFO)
+
+# Локальная база данных в памяти
+UsersDatabase = {}
+EarlyAccessList = {}
 
 class RegistrationStates(StatesGroup):
     WaitingForRobloxNickname = State()
@@ -39,20 +32,17 @@ async def HandleStartCommand(Message: types.Message):
     UserId = Message.from_user.id
     CommandArgs = Message.get_args()
     
-    UserReference = db.reference(f"Users/{UserId}")
-    UserData = UserReference.get()
-    
-    if not UserData:
+    if UserId not in UsersDatabase:
         ReferrerId = None
         if CommandArgs and CommandArgs.isdigit() and int(CommandArgs) != UserId:
             ReferrerId = int(CommandArgs)
             
-        UserReference.set({
+        UsersDatabase[UserId] = {
             "ReferrerId": ReferrerId,
             "InvitedCount": 0,
             "RobloxNickname": None,
             "RewardReceived": False
-        })
+        }
         
         if ReferrerId:
             await Message.answer("Привет! Ты перешел по ссылке друга. Подпишись на канал и нажми проверку ниже!")
@@ -78,24 +68,20 @@ async def HandleCheckReferrals(CallbackQuery: types.CallbackQuery, State: FSMCon
     UserId = CallbackQuery.from_user.id
     IsSubscribed = await CheckChannelSubscription(UserId)
     
-    CurrentUserReference = db.reference(f"Users/{UserId}")
-    CurrentUserData = CurrentUserReference.get()
+    CurrentUserData = UsersDatabase.get(UserId)
     
     if CurrentUserData and CurrentUserData.get("ReferrerId") and IsSubscribed:
         ParentId = CurrentUserData["ReferrerId"]
-        ParentReference = db.reference(f"Users/{ParentId}")
-        ParentData = ParentReference.get()
+        ParentData = UsersDatabase.get(ParentId)
         
         if ParentData:
-            NewCount = ParentData.get("InvitedCount", 0) + 1
-            ParentReference.update({"InvitedCount": NewCount})
+            ParentData["InvitedCount"] += 1
             try:
                 await TelegramBot.send_message(ParentId, "🎉 По твоей ссылке зашел новый подписчик!")
             except Exception:
                 pass
                 
-        CurrentUserReference.update({"ReferrerId": None})
-        CurrentUserData = CurrentUserReference.get()
+        CurrentUserData["ReferrerId"] = None
 
     InvitedFriendsCount = CurrentUserData.get("InvitedCount", 0) if CurrentUserData else 0
     HasReward = CurrentUserData.get("RewardReceived", False) if CurrentUserData else False
@@ -116,14 +102,11 @@ async def HandleRobloxNicknameInput(Message: types.Message, State: FSMContext):
     RobloxNickname = Message.text.strip()
     UserId = Message.from_user.id
     
-    UserReference = db.reference(f"Users/{UserId}")
-    UserReference.update({
-        "RobloxNickname": RobloxNickname,
-        "RewardReceived": True
-    })
+    if UserId in UsersDatabase:
+        UsersDatabase[UserId]["RobloxNickname"] = RobloxNickname
+        UsersDatabase[UserId]["RewardReceived"] = True
     
-    NicknameReference = db.reference(f"EarlyAccessList/{RobloxNickname}")
-    NicknameReference.set(True)
+    EarlyAccessList[RobloxNickname] = True
     
     await State.finish()
     await Message.answer(f"🎉 Супер! Твой ник *{RobloxNickname}* успешно добавлен в белый список раннего доступа. Ты сможешь поиграть в игру на два часа раньше! (26 июня 16:00 по мск)", parse_mode="Markdown")
