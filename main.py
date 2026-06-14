@@ -14,7 +14,6 @@ ChannelId = -1003326105559
 FirebaseCredentialPath = "key.json"
 FirebaseDatabaseUrl = "https://earlyaccess-f2d4b-default-rtdb.firebaseio.com/"
 
-
 AppCredentials = credentials.Certificate(FirebaseCredentialPath)
 firebase_admin.initialize_app(AppCredentials, {
     "databaseURL": FirebaseDatabaseUrl
@@ -57,13 +56,6 @@ async def HandleStartCommand(Message: types.Message):
         
         if ReferrerId:
             await Message.answer("Привет! Ты перешел по ссылке друга. Подпишись на канал и нажми проверку ниже!")
-            
-    MenuKeyboard = types.InlineKeyboardMarkup(row_width=1)
-    LinkButton = types.InlineKeyboardButton("🔗 Получить мою ссылку", callback_data="GetInviteLink")
-    CheckButton = types.InlineKeyboardButton("✅ Проверить моих друзей", callback_data="CheckReferrals")
-    MenuKeyboard.add(LinkButton, CheckButton)
-    
-    await Message.answer("Добро пожаловать! Пригласи 2 друзей в канал и получи ранний доступ к игре «Вырасти Русский Сад»!", reply_markup=MenuKeyboard)
             
     MenuKeyboard = types.InlineKeyboardMarkup(row_width=1)
     LinkButton = types.InlineKeyboardButton("🔗 Получить мою ссылку", callback_data="GetInviteLink")
